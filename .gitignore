@@ -1,0 +1,27 @@
+
+# Go cache
+.gocache/
+
+# Build output
+*.exe
+*.out
+
+# Logs
+*.log
+
+# Environment / secrets
+.env
+.env.*
+
+# IDE
+.vscode/
+.idea/
+
+# Temporary / scratch files
+scratch_*.go
+test_*.go
+check_*.go
+
+# Temporary output files
+output.txt
+test_out.txt
