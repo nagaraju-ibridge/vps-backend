@@ -11,6 +11,14 @@ import (
 	"vpsmonitoring-backend/internal/discovery/dto"
 	serverDTO "vpsmonitoring-backend/internal/server/dto"
 	serverService "vpsmonitoring-backend/internal/server/service"
+	"vpsmonitoring-backend/internal/website/models"
+	websiteRepository "vpsmonitoring-backend/internal/website/repository"
+	websiteService "vpsmonitoring-backend/internal/website/service"
+
+	"github.com/glebarez/sqlite"
+	"github.com/stretchr/testify/assert"
+	
+	"gorm.io/gorm"
 )
 
 func TestDiscoveryServiceIngestValidPayload(t *testing.T) {
@@ -406,4 +414,55 @@ func validPayload() dto.DiscoveryPayloadDTO {
 		Listeners: []dto.ListenerDTO{listener},
 		Warnings:  []string{"permission denied for process metadata"},
 	}
+}
+
+func TestDiscoveryService_IngestWebsites(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{})
+	assert.NoError(t, err)
+	err = db.AutoMigrate(&models.HostingAccount{}, &models.Website{}, &models.WebsiteDomain{})
+	assert.NoError(t, err)
+
+	cache := NewDiscoveryCache()
+	websiteRepo := websiteRepository.NewWebsiteRepository(db)
+	websiteSvc := websiteService.NewWebsiteService(websiteRepo, db)
+	fakeServerSvc := &fakeServerService{
+		servers: map[[2]int64]*serverDTO.ServerResponse{
+			{2, 0}: {ID: 2},
+		},
+	}
+	
+	svc := &discoveryService{
+		cache:      cache,
+		serverSvc:  fakeServerSvc,
+		websiteSvc: websiteSvc,
+		now:        time.Now,
+	}
+
+	serverID := int64(2)
+	webServerKind := "nginx"
+	
+	payload := validPayload()
+	payload.Websites = []dto.WebsiteCandidateDTO{
+		{
+			Domains: []dto.WebDomainCandidateDTO{{DomainName: "integration.com", IsPrimary: true}},
+			Confidence:    dto.ConfidenceHigh,
+			Source:        "nginx_config",
+			WebServerKind: webServerKind,
+		},
+	}
+
+	res, err := svc.IngestDiscovery(context.Background(), serverID, payload)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, res.Applications) // returns application counts
+
+	// Prove cache behavior remains intact
+	snapshot, ok := cache.Get(serverID)
+	assert.True(t, ok)
+	assert.Len(t, snapshot.Applications, 1)
+
+	// Prove website persisted
+	w, err := websiteRepo.GetWebsite(context.Background(), serverID, "integration.com")
+	assert.NoError(t, err)
+	assert.NotNil(t, w)
+	assert.Equal(t, "nginx", *w.WebServerKind)
 }

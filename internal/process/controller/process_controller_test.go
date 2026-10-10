@@ -376,10 +376,10 @@ func TestIngestSnapshot_TooManyProcesses_Returns400(t *testing.T) {
 	c := cache.NewProcessCache()
 	h := buildPipeline(c)
 
-	rr := post(h, validPayload(201), "valid-agent-secret")
+	rr := post(h, validPayload(501), "valid-agent-secret")
 
 	if rr.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for >200 processes, got %d: %s", rr.Code, rr.Body.String())
+		t.Errorf("expected 400 for >500 processes, got %d: %s", rr.Code, rr.Body.String())
 	}
 }
 
@@ -447,8 +447,8 @@ func TestIngestSnapshot_InvalidPayload_DoesNotOverwriteCache(t *testing.T) {
 		t.Fatal("initial snapshot not stored")
 	}
 
-	// Send an invalid payload (>200 processes).
-	post(h, validPayload(201), "valid-agent-secret")
+	// Send an invalid payload (>500 processes).
+	post(h, validPayload(501), "valid-agent-secret")
 
 	after, _ := c.Get(42)
 	if after == nil {

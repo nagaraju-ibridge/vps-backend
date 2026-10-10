@@ -60,6 +60,15 @@ type ProcessSnapshotDTO struct {
 
 	// Threads is the thread count. Nil when unavailable.
 	Threads *int32 `json:"threads,omitempty"`
+
+	// User is the operating-system user owning the process (e.g. "vocc", "mysql").
+	User string `json:"user,omitempty"`
+
+	// VirtBytes is the virtual memory size in bytes (VIRT in top). Nil when unavailable.
+	VirtBytes *uint64 `json:"virt_bytes,omitempty"`
+
+	// Cmdline is the process executable command (e.g. "php-fpm8.2", "mariadbd").
+	Cmdline string `json:"cmdline,omitempty"`
 }
 
 // IngestProcessSnapshotResponse is returned on a successful 202 Accepted.

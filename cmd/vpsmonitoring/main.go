@@ -46,6 +46,9 @@ import (
 	systemdCache "vpsmonitoring-backend/internal/systemd/cache"
 	systemdController "vpsmonitoring-backend/internal/systemd/controller"
 	systemdService "vpsmonitoring-backend/internal/systemd/service"
+	websiteModels "vpsmonitoring-backend/internal/website/models"
+	websiteRepository "vpsmonitoring-backend/internal/website/repository"
+	websiteService "vpsmonitoring-backend/internal/website/service"
 )
 
 type DatabaseHealth struct {
@@ -144,8 +147,18 @@ func main() {
 	healthCtrl := healthController.NewHealthController(healthServ)
 
 	// 8e. Initialize Discovery Architecture (Phase 3.5C.6)
+	if err := gormDB.AutoMigrate(
+		&websiteModels.HostingAccount{},
+		&websiteModels.Website{},
+		&websiteModels.WebsiteDomain{},
+	); err != nil {
+		log.Fatalf("[FATAL] Website AutoMigrate failed: %v", err)
+	}
+	websiteRepo := websiteRepository.NewWebsiteRepository(gormDB)
+	websiteSvc := websiteService.NewWebsiteService(websiteRepo, gormDB)
+
 	discoveryCache := discoveryService.NewDiscoveryCache()
-	discoveryServ := discoveryService.NewDiscoveryService(discoveryCache, serverServ)
+	discoveryServ := discoveryService.NewDiscoveryService(discoveryCache, serverServ, websiteSvc)
 	discoveryCtrl := discoveryController.NewDiscoveryController(discoveryServ)
 
 	// 8f. Initialize Application Architecture (Phase 3.6.2)
@@ -312,6 +325,7 @@ func main() {
 	app.GET("/api/v1/user/servers/{serverId}/processes", procCtrl.GetProcesses)
 	app.GET("/api/v1/user/servers/{serverId}/services", sysCtrl.GetServices) // Phase 3.5A
 	app.GET("/api/v1/user/servers/{serverId}/discovery", discoveryCtrl.GetDiscovery)
+	app.GET("/api/v1/user/servers/{serverId}/probe-domain", discoveryCtrl.ProbeDomain)
 
 	// Phase 3.5B User APIs
 	app.POST("/api/v1/user/servers/{serverId}/health-configs", healthCtrl.CreateConfig)

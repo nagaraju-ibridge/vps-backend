@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"gorm.io/driver/sqlite"
+	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
@@ -29,7 +29,7 @@ func (m *mockServerService) GetServer(ctx context.Context, id int64, userID int6
 }
 
 func setupTestDB(t *testing.T) *gorm.DB {
-	db, err := gorm.Open(sqlite.Open("file::memory:?cache=shared"), &gorm.Config{
+	db, err := gorm.Open(sqlite.Open("file::memory:"), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Silent),
 	})
 	if err != nil {
@@ -253,18 +253,28 @@ func TestApplicationService_UpdateAndDelete(t *testing.T) {
 func TestApplicationService_GetAgentConfig(t *testing.T) {
 	db := setupTestDB(t)
 	repo := repository.NewApplicationRepository(db)
-	mockServerSvc := &mockServerService{}
+	mockServerSvc := &mockServerService{
+		servers: map[int64]*serverDto.ServerResponse{
+			1: {ID: 1},
+		},
+	}
 	svc := NewApplicationService(repo, mockServerSvc, db)
 
 	// Create enabled app
-	_, _ = svc.Create(context.Background(), 1, 1, dto.ApplicationCreateRequest{
+	_, err := svc.Create(context.Background(), 1, 1, dto.ApplicationCreateRequest{
 		Name: "Enabled App", MatchType: "systemd_unit", MatchValue: "enabled.service",
 	})
+	if err != nil {
+		t.Fatalf("failed to create app: %v", err)
+	}
 
 	// Create disabled app
-	res, _ := svc.Create(context.Background(), 1, 1, dto.ApplicationCreateRequest{
+	res, err := svc.Create(context.Background(), 1, 1, dto.ApplicationCreateRequest{
 		Name: "Disabled App", MatchType: "systemd_unit", MatchValue: "disabled.service",
 	})
+	if err != nil {
+		t.Fatalf("failed to create disabled app: %v", err)
+	}
 
 	// Set it to disabled
 	nameStr := "Disabled App"

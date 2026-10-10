@@ -17,7 +17,7 @@ import (
 const (
 	// MaxProcessCount is the maximum number of process entries accepted per
 	// agent POST. Payloads with more entries are rejected with 400.
-	MaxProcessCount = 200
+	MaxProcessCount = 500
 
 	// MaxBodyBytes is the maximum permitted request body size (500 KiB).
 	// The HTTP handler enforces this before passing the payload here.
